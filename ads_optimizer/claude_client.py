@@ -92,6 +92,17 @@ def _extract_json(text: str) -> dict[str, Any]:
     candidate = _fix_json_strings(candidate)
     try:
         return json.loads(candidate)
+    except json.JSONDecodeError:
+        pass
+    try:
+        from json_repair import repair_json
+        repaired = repair_json(candidate, return_objects=True)
+        if isinstance(repaired, dict):
+            return repaired
+    except Exception:
+        pass
+    try:
+        return json.loads(candidate)
     except json.JSONDecodeError as exc:
         raise ClaudeError(f"failed to parse JSON: {exc}") from exc
 
@@ -262,6 +273,7 @@ class ClaudeClient:
         template = _load_template(prompt_path)
         prompt_text = template.safe_substitute(
             CHANGE_ID=change.get("id", ""),
+            TITLE=change.get("title", ""),
             SECTION=change.get("section", ""),
             REASONING=change.get("reasoning", ""),
             EXPECTED_VALUE=change.get("expected_value", ""),

@@ -46,15 +46,16 @@ def send_review_notification(
     for c in changes:
         priority = c.get("priority", "?")
         bg, fg = _PRIORITY_STYLE.get(priority, ("#eee", "#333"))
+        title = c.get("title") or c.get("reasoning", "")[:80]
         rows += (
             f"<tr>"
-            f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">'
+            f'<td style="padding:10px 12px;border-bottom:1px solid #eee;vertical-align:top;white-space:nowrap;">'
             f'<span style="background:{bg};color:{fg};padding:2px 7px;border-radius:3px;'
-            f'font-size:11px;font-weight:700;">{priority}</span> {c.get("id","")}</td>'
-            f'<td style="padding:8px 12px;border-bottom:1px solid #eee;color:#555;">'
-            f'{c.get("section","")}</td>'
-            f'<td style="padding:8px 12px;border-bottom:1px solid #eee;color:#666;font-size:13px;">'
-            f'{c.get("reasoning","")[:120]}…</td>'
+            f'font-size:11px;font-weight:700;">{priority}</span></td>'
+            f'<td style="padding:10px 12px;border-bottom:1px solid #eee;font-size:14px;color:#1a1a2e;font-weight:500;">'
+            f'{title}'
+            f'<div style="color:#888;font-size:12px;font-weight:400;margin-top:2px;">{c.get("section","")}</div>'
+            f'</td>'
             f"</tr>"
         )
 
@@ -76,9 +77,8 @@ def send_review_notification(
     </p>
     <table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:14px;">
       <tr style="background:#f5f5f5;">
-        <th style="padding:8px 12px;text-align:left;font-size:12px;color:#888;font-weight:600;text-transform:uppercase;">ID</th>
-        <th style="padding:8px 12px;text-align:left;font-size:12px;color:#888;font-weight:600;text-transform:uppercase;">Section</th>
-        <th style="padding:8px 12px;text-align:left;font-size:12px;color:#888;font-weight:600;text-transform:uppercase;">Reasoning</th>
+        <th style="padding:8px 12px;text-align:left;font-size:12px;color:#888;font-weight:600;text-transform:uppercase;width:60px;">Pri</th>
+        <th style="padding:8px 12px;text-align:left;font-size:12px;color:#888;font-weight:600;text-transform:uppercase;">Suggested change</th>
       </tr>
       {rows}
     </table>
@@ -102,6 +102,70 @@ def send_review_notification(
         "html": html,
     })
     logger.info("Review notification sent to %s (session=%s)", to_email, session_id)
+
+
+def send_rereview_notification(
+    to_email: str,
+    session_id: str,
+    review_base_url: str,
+    revised_changes: list[dict[str, Any]],
+    parent_session_id: str,
+) -> None:
+    """Email sent after Claude has revised changes based on the reviewer's feedback —
+    asks for explicit re-approval before any of them deploy."""
+    resend = _resend()
+    review_url = f"{review_base_url.rstrip('/')}/review/{session_id}"
+
+    rows = ""
+    for c in revised_changes:
+        title = c.get("title") or c.get("reasoning", "")[:80]
+        feedback = c.get("feedback_text", "") or ""
+        revision = ""
+        rev_result = c.get("re_review_result") or {}
+        if isinstance(rev_result, dict):
+            revision = rev_result.get("revision_summary", "")
+        rows += (
+            f'<tr><td style="padding:14px 12px;border-bottom:1px solid #eee;">'
+            f'<div style="font-size:14px;color:#1a1a2e;font-weight:600;">{title}</div>'
+            f'<div style="margin-top:6px;font-size:12px;color:#666;"><strong>Your feedback:</strong> {feedback}</div>'
+            f'<div style="margin-top:4px;font-size:12px;color:#1a5b9b;"><strong>Claude\'s revision:</strong> {revision}</div>'
+            f'</td></tr>'
+        )
+
+    html = f"""
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#fff;">
+  <div style="background:#1a5b9b;padding:28px 32px;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:22px;font-weight:600;">Henry · Revised Changes</h1>
+    <p style="color:#bcd5ec;margin:6px 0 0;font-size:14px;">Claude has revised {len(revised_changes)} change{'s' if len(revised_changes) != 1 else ''} based on your feedback — needs your final approval</p>
+  </div>
+  <div style="padding:28px 32px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px;">
+    <p style="color:#555;font-size:14px;margin:0 0 20px;line-height:1.6;">
+      You sent feedback on these in the previous review. Claude has now revised them.
+      <strong>None of these have been deployed yet</strong> — open the review to approve, reject, or send more feedback.
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+      {rows}
+    </table>
+    <div style="text-align:center;">
+      <a href="{review_url}"
+         style="display:inline-block;background:#1a1a2e;color:#fff;padding:14px 36px;
+                border-radius:6px;text-decoration:none;font-size:15px;font-weight:600;">
+        Review Revisions →
+      </a>
+    </div>
+    <p style="text-align:center;margin:20px 0 0;color:#bbb;font-size:12px;">
+      <a href="{review_url}" style="color:#bbb;">{review_url}</a>
+    </p>
+  </div>
+</div>"""
+
+    resend.Emails.send({
+        "from": FROM_EMAIL,
+        "to": [to_email],
+        "subject": f"Henry · {len(revised_changes)} revised change{'s' if len(revised_changes) != 1 else ''} — final approval needed",
+        "html": html,
+    })
+    logger.info("Re-review notification sent to %s (session=%s, parent=%s)", to_email, session_id, parent_session_id)
 
 
 def send_deployment_confirmation(

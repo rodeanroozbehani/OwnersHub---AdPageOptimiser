@@ -5,6 +5,7 @@ OwnersHub landing page based on reviewer feedback.
 ORIGINAL PROPOSED CHANGE
 ================================================================================
 Change ID: $CHANGE_ID
+Title: $TITLE
 Section: $SECTION
 Reasoning: $REASONING
 Expected value: $EXPECTED_VALUE
@@ -29,4 +30,8 @@ Produce a revised proposed_element that:
 3. Remains valid HTML that can be dropped in as a direct string replacement
 
 Return ONLY a JSON object — no prose, no code fences, nothing else:
-{"proposed_element": "<the revised HTML>"}
+{
+  "title": "<5-9 word summary of the revised change in plain English>",
+  "proposed_element": "<the revised HTML>",
+  "revision_summary": "<1-2 sentences explaining what you changed in response to the feedback>"
+}

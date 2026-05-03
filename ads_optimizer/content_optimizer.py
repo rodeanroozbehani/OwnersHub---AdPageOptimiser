@@ -167,6 +167,7 @@ def _write_review_doc(
 
     for change in sorted_changes:
         cid = change.get("id", "CC-???")
+        title = change.get("title", "").strip()
         priority = change.get("priority", "P?")
         section = change.get("section", "")
         dimension = change.get("dimension", "")
@@ -177,11 +178,15 @@ def _write_review_doc(
         proposed_el = change.get("proposed_element", "")
         impl_note = change.get("implementation_note", "")
 
+        heading = f"### {title}" if title else f"### {cid} — {section.title()} · {dimension.title()}"
+
         lines += [
             "---",
             "",
-            f"### {cid} — {section.title()} · {dimension.title()}",
+            heading,
             "",
+            f"**ID:** {cid}  ",
+            f"**Section:** {section.title()} · {dimension.title()}  ",
             f"**Priority:** {_PRIORITY_BADGE.get(priority, priority)}  ",
             f"**Effort:** {_EFFORT_BADGE.get(effort, effort)}  ",
             "",

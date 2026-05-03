@@ -137,6 +137,7 @@ Return a SINGLE JSON object, nothing else — no prose, no code fences:
   "proposed_changes": [
     {
       "id": "CC-001",
+      "title": string (5-9 words describing the change in plain English — e.g. "Replace recruiting badge with active-pilot framing", "Lead headline with self-manage promise". Should let the reviewer know what the change is at a glance, no jargon),
       "priority": "P0" | "P1" | "P2",
       "section": string (e.g. "hero", "cta", "trust-signals", "mobile", "body-copy"),
       "dimension": "relevance" | "promise" | "cta" | "copy" | "trust" | "mobile" | "structure",

@@ -30,7 +30,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .card-hdr{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid #f0f0f0}
 .badge{font-size:10px;font-weight:700;padding:3px 7px;border-radius:3px;text-transform:uppercase}
 .P0{background:#fff0f0;color:#c0392b}.P1{background:#fff8e0;color:#d68910}.P2{background:#e8f5e9;color:#196f3d}
-.card-id{font-weight:600;font-size:14px}.card-meta{color:#888;font-size:12px;margin-left:auto}
+.card-title{font-weight:600;font-size:15px;color:#1a1a2e;flex:1;line-height:1.4}
+.card-meta{color:#888;font-size:12px;white-space:nowrap}
 .card-body{padding:14px 18px}
 .lbl{font-size:11px;font-weight:600;text-transform:uppercase;color:#999;letter-spacing:.5px;margin:0 0 4px}
 .reasoning{font-size:13px;color:#444;line-height:1.6;margin-bottom:10px}
@@ -68,8 +69,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="card">
     <div class="card-hdr">
       <span class="badge {{ c.priority }}">{{ c.priority }}</span>
-      <span class="card-id">{{ cid }}</span>
-      <span class="card-meta">{{ c.section }} · {{ c.dimension }} · {{ c.effort }} effort</span>
+      <span class="card-title">{{ c.title or c.id or 'Change ' ~ (loop.index0 + 1) }}</span>
+      <span class="card-meta">{{ c.section }} · {{ c.effort }} effort</span>
     </div>
     <div class="card-body">
       <div class="lbl">Reasoning</div>
@@ -154,11 +155,11 @@ _DONE_HTML = """<!DOCTYPE html>
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f2f3f5;
      color:#333;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
 .card{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:40px;
-      max-width:480px;width:100%;text-align:center}
+      max-width:520px;width:100%;text-align:center}
 .icon{font-size:48px;margin-bottom:16px}
 h1{font-size:22px;font-weight:600;margin-bottom:8px}
 .sub{color:#666;font-size:14px;line-height:1.6;margin-bottom:24px}
-.stats{display:flex;border:1px solid #eee;border-radius:6px;overflow:hidden;margin-bottom:24px}
+.stats{display:flex;border:1px solid #eee;border-radius:6px;overflow:hidden;margin-bottom:18px}
 .stat{flex:1;padding:14px;border-right:1px solid #eee}
 .stat:last-child{border-right:none}
 .stat .n{font-size:28px;font-weight:700}
@@ -167,28 +168,45 @@ h1{font-size:22px;font-weight:600;margin-bottom:8px}
 .commit{font-size:12px;color:#888;margin-top:12px}
 .commit a{color:#0066cc;text-decoration:none}
 .err{color:#c0392b;font-size:13px;margin-top:12px;padding:10px;background:#fff0f0;border-radius:4px;text-align:left}
+.notice{background:#eaf3fb;border:1px solid #b8d4ec;color:#1a5b9b;padding:14px 16px;
+        border-radius:6px;font-size:13px;line-height:1.6;text-align:left;margin-bottom:18px}
+.notice strong{display:block;margin-bottom:4px;font-size:14px}
+.notice a{color:#1a5b9b;font-weight:600;text-decoration:underline}
 </style>
 </head>
 <body>
 <div class="card">
   {% if deployed %}
   <div class="icon">🚀</div>
-  <h1>Changes Deployed</h1>
-  <p class="sub">Approved changes committed and pushed to GitHub.<br>Cloudflare Pages will be live within ~60 seconds.</p>
+  <h1>Approved Changes Deployed</h1>
+  <p class="sub">Committed and pushed to GitHub.<br>Cloudflare Pages will be live within ~60 seconds.</p>
   {% elif deploy_error %}
   <div class="icon">⚠️</div>
   <h1>Decisions Saved</h1>
   <p class="sub">Decisions recorded, but deployment failed.</p>
   <div class="err">{{ deploy_error }}</div>
+  {% elif feedback_pending %}
+  <div class="icon">✉️</div>
+  <h1>Feedback Sent to Claude</h1>
+  <p class="sub">Your decisions are saved. Claude is revising your feedback items now.</p>
   {% else %}
   <div class="icon">✓</div>
   <h1>Decisions Saved</h1>
   <p class="sub">No approved changes to deploy.</p>
   {% endif %}
+
+  {% if feedback_pending %}
+  <div class="notice">
+    <strong>{{ feedback_pending }} revised change{{ 's' if feedback_pending != 1 else '' }} awaiting your approval</strong>
+    Claude has revised the items you flagged for feedback. <strong>Nothing has been deployed for these.</strong>
+    A new review email is on its way to your inbox — you must explicitly approve before any revised change goes live.
+  </div>
+  {% endif %}
+
   <div class="stats">
-    <div class="stat"><div class="n n-ok">{{ approved }}</div><div class="l">Approved</div></div>
+    <div class="stat"><div class="n n-ok">{{ approved }}</div><div class="l">Deployed</div></div>
     <div class="stat"><div class="n n-no">{{ rejected }}</div><div class="l">Rejected</div></div>
-    <div class="stat"><div class="n n-fb">{{ rereviewed }}</div><div class="l">Re-reviewed</div></div>
+    <div class="stat"><div class="n n-fb">{{ feedback_pending }}</div><div class="l">Awaiting re-review</div></div>
   </div>
   {% if commit_url %}
   <div class="commit">Commit: <a href="{{ commit_url }}">{{ commit_url.split('/')[-1] }}</a></div>
@@ -246,7 +264,7 @@ def create_app(config: dict[str, Any], project_root: Path) -> Flask:
     @app.route("/review/<session_id>", methods=["POST"])
     def submit_review(session_id: str):  # type: ignore[return]
         from .state import ReviewSession
-        from .mailer import send_deployment_confirmation
+        from .mailer import send_deployment_confirmation, send_rereview_notification
         from .deployer import apply_and_deploy
 
         try:
@@ -257,6 +275,8 @@ def create_app(config: dict[str, Any], project_root: Path) -> Flask:
         data = sess.read()
         if data["status"] != "pending":
             return redirect(url_for("done", session_id=session_id))
+
+        review_base_url = hitl_cfg.get("review_base_url", "")
 
         # Record decisions from form
         for i, change in enumerate(data["changes"]):
@@ -269,22 +289,39 @@ def create_app(config: dict[str, Any], project_root: Path) -> Flask:
                 else None
             )
 
-        # Re-review feedback items via Claude
+        # Re-review feedback items via Claude — DO NOT auto-approve.
+        # Revised items will be batched into a NEW review session for explicit approval.
+        revised_for_new_session: list[dict[str, Any]] = []
         for change in data["changes"]:
             if change["decision"] == "feedback" and change.get("feedback_text"):
                 try:
                     revised = _re_review_change(change, config, project_root)
                     change["re_review_result"] = revised
-                    change["decision"] = "approved"
+                    # Build the change record for the new review session: original
+                    # current_element stays, but proposed_element/title come from Claude's revision.
+                    revised_change = {
+                        **change,
+                        "title": revised.get("title") or change.get("title", ""),
+                        "proposed_element": revised.get("proposed_element", change.get("proposed_element", "")),
+                        "implementation_note": (
+                            f"Revised based on your feedback: {change.get('feedback_text','')}\n"
+                            f"Claude's revision summary: {revised.get('revision_summary','')}"
+                        ),
+                        "decision": None,
+                        "feedback_text": None,
+                        "re_review_result": None,
+                    }
+                    revised_for_new_session.append(revised_change)
                     logger.info("Re-review complete for %s", change.get("id", "?"))
                 except Exception as exc:
-                    logger.warning("Re-review failed for %s: %s — rejecting", change.get("id", "?"), exc)
-                    change["decision"] = "rejected"
+                    logger.warning("Re-review failed for %s: %s — keeping as feedback", change.get("id", "?"), exc)
+                    change["re_review_error"] = str(exc)
 
-        # Apply and deploy approved changes
+        # Phase 1: deploy ONLY the changes that the user directly approved.
+        # Feedback items are NOT deployed here — they go into a new review session.
         approved = [c for c in data["changes"] if c["decision"] == "approved"]
         rejected = [c for c in data["changes"] if c["decision"] == "rejected"]
-        rereviewed = [c for c in data["changes"] if c.get("re_review_result")]
+        feedback_count = len(revised_for_new_session)
 
         if approved:
             try:
@@ -303,20 +340,52 @@ def create_app(config: dict[str, Any], project_root: Path) -> Flask:
                 logger.error("Deploy failed: %s", exc)
                 data["deploy_error"] = str(exc)
 
+        # Phase 2: spawn a new review session for the revised changes.
+        new_session_id = ""
+        if revised_for_new_session:
+            try:
+                new_session = ReviewSession.create(
+                    session_dir=session_dir,
+                    changes=revised_for_new_session,
+                    html_source=data.get("html_source", ""),
+                    review_path=data.get("review_path", ""),
+                    conversion_readiness_score=data.get("conversion_readiness_score", 0),
+                    overall_assessment=(
+                        f"Revised changes from session {session_id[:8]} based on your feedback. "
+                        "Approve, reject, or send more feedback before any of these go live."
+                    ),
+                    parent_session_id=session_id,
+                )
+                new_session_id = new_session.session_id
+                send_rereview_notification(
+                    to_email=to_email,
+                    session_id=new_session_id,
+                    review_base_url=review_base_url,
+                    revised_changes=revised_for_new_session,
+                    parent_session_id=session_id,
+                )
+                data["spawned_rereview_session"] = new_session_id
+                logger.info("Spawned re-review session %s from %s", new_session_id, session_id)
+            except Exception as exc:
+                logger.error("Failed to create re-review session: %s", exc)
+                data["rereview_error"] = str(exc)
+
         data["status"] = "completed"
         sess.update(data)
 
-        try:
-            send_deployment_confirmation(
-                to_email=to_email,
-                session_id=session_id,
-                approved_count=len(approved),
-                rejected_count=len(rejected),
-                feedback_count=len(rereviewed),
-                commit_url=data.get("commit_url", ""),
-            )
-        except Exception as exc:
-            logger.warning("Confirmation email failed: %s", exc)
+        # Confirmation email only if something deployed OR a re-review was spawned.
+        if approved or revised_for_new_session:
+            try:
+                send_deployment_confirmation(
+                    to_email=to_email,
+                    session_id=session_id,
+                    approved_count=len(approved),
+                    rejected_count=len(rejected),
+                    feedback_count=feedback_count,
+                    commit_url=data.get("commit_url", ""),
+                )
+            except Exception as exc:
+                logger.warning("Confirmation email failed: %s", exc)
 
         return redirect(url_for("done", session_id=session_id))
 
@@ -338,7 +407,7 @@ def create_app(config: dict[str, Any], project_root: Path) -> Flask:
             commit_url=data.get("commit_url", ""),
             approved=sum(1 for c in changes if c.get("decision") == "approved"),
             rejected=sum(1 for c in changes if c.get("decision") == "rejected"),
-            rereviewed=sum(1 for c in changes if c.get("re_review_result")),
+            feedback_pending=sum(1 for c in changes if c.get("re_review_result")),
         )
 
     return app

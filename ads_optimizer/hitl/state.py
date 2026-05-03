@@ -29,6 +29,7 @@ class ReviewSession:
         review_path: str,
         conversion_readiness_score: int,
         overall_assessment: str,
+        parent_session_id: str | None = None,
     ) -> "ReviewSession":
         session_dir.mkdir(parents=True, exist_ok=True)
         session = cls(session_dir)
@@ -36,6 +37,8 @@ class ReviewSession:
             "session_id": session.session_id,
             "created_at": _utc_now(),
             "status": "pending",
+            "parent_session_id": parent_session_id,
+            "is_re_review": parent_session_id is not None,
             "html_source": html_source,
             "review_path": review_path,
             "conversion_readiness_score": conversion_readiness_score,
