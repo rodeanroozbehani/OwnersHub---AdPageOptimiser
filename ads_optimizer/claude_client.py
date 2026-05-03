@@ -49,6 +49,35 @@ def _encode_image(path: str) -> dict[str, Any]:
     }
 
 
+def _fix_json_strings(text: str) -> str:
+    """Escape literal newlines and carriage returns inside JSON string values.
+
+    Claude sometimes emits multi-line HTML verbatim inside JSON strings, which
+    breaks json.loads. This walks the text character-by-character so it handles
+    escaped quotes correctly without false-positive replacements.
+    """
+    result: list[str] = []
+    in_string = False
+    escape_next = False
+    for ch in text:
+        if escape_next:
+            result.append(ch)
+            escape_next = False
+        elif ch == "\\":
+            result.append(ch)
+            escape_next = True
+        elif ch == '"':
+            in_string = not in_string
+            result.append(ch)
+        elif in_string and ch == "\n":
+            result.append("\\n")
+        elif in_string and ch == "\r":
+            result.append("\\r")
+        else:
+            result.append(ch)
+    return "".join(result)
+
+
 def _extract_json(text: str) -> dict[str, Any]:
     """Pull the first JSON object out of a free-form Claude response."""
     fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.DOTALL)
@@ -60,6 +89,7 @@ def _extract_json(text: str) -> dict[str, Any]:
             candidate = text[first:last + 1]
     if candidate is None:
         raise ClaudeError("no JSON object found in Claude response")
+    candidate = _fix_json_strings(candidate)
     try:
         return json.loads(candidate)
     except json.JSONDecodeError as exc:
