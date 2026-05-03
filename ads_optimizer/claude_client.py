@@ -238,9 +238,17 @@ class ClaudeClient:
             raise ClaudeError("re-review response missing proposed_element key")
         return parsed
 
-    def _call_with_messages(self, messages: list[dict[str, Any]]) -> str:
-        """Call Claude with a full multi-turn messages array (used for JSON fixup retries)."""
+    def _call_with_messages(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        prefill_json: bool = False,
+    ) -> str:
+        """Call Claude with a full multi-turn messages array."""
         from anthropic import APIError, APITimeoutError, RateLimitError
+
+        if prefill_json:
+            messages = messages + [{"role": "assistant", "content": [{"type": "text", "text": "{"}]}]
 
         backoff = 2.0
         last_exc: Exception | None = None
@@ -256,7 +264,8 @@ class ClaudeClient:
                     block.text for block in response.content
                     if getattr(block, "type", None) == "text"
                 ]
-                return "\n".join(text_parts)
+                result = "\n".join(text_parts)
+                return ("{" + result) if prefill_json else result
             except (RateLimitError, APITimeoutError, APIError) as exc:
                 last_exc = exc
                 logger.warning("claude_client: retryable error (%s), backing off %.1fs", exc, backoff)
@@ -265,4 +274,7 @@ class ClaudeClient:
         raise ClaudeError(f"Claude call failed after retries: {last_exc}")
 
     def _call_with_retry(self, content_blocks: list[dict[str, Any]]) -> str:
-        return self._call_with_messages([{"role": "user", "content": content_blocks}])
+        return self._call_with_messages(
+            [{"role": "user", "content": content_blocks}],
+            prefill_json=True,
+        )
