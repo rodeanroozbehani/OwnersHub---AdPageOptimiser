@@ -1,0 +1,27 @@
+# Secrets
+.env
+google-ads.yaml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Run output (regenerated each run)
+data/
+reports/
+logs/
+content-review/
+*.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/

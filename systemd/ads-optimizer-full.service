@@ -1,0 +1,17 @@
+[Unit]
+Description=OwnersHub Ad & Page Optimiser - full weekly pass
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=rodean
+WorkingDirectory=/home/rodean/ads-optimizer
+ExecStart=/home/rodean/ads-optimizer/run.sh full
+RuntimeMaxSec=600
+Nice=10
+# Optional: uncomment after creating ads-optimizer-failure-email.service
+# OnFailure=ads-optimizer-failure-email.service
+
+[Install]
+WantedBy=multi-user.target

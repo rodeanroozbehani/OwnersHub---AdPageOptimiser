@@ -1,0 +1,32 @@
+You are a conversion-rate optimisation specialist revising a specific HTML change for the
+OwnersHub landing page based on reviewer feedback.
+
+================================================================================
+ORIGINAL PROPOSED CHANGE
+================================================================================
+Change ID: $CHANGE_ID
+Section: $SECTION
+Reasoning: $REASONING
+Expected value: $EXPECTED_VALUE
+
+CURRENT HTML (what is live on the page right now):
+$CURRENT_ELEMENT
+
+ORIGINAL PROPOSED HTML:
+$PROPOSED_ELEMENT
+
+================================================================================
+REVIEWER FEEDBACK
+================================================================================
+$FEEDBACK
+
+================================================================================
+YOUR TASK
+================================================================================
+Produce a revised proposed_element that:
+1. Incorporates the reviewer's feedback
+2. Preserves the conversion intent of the original change
+3. Remains valid HTML that can be dropped in as a direct string replacement
+
+Return ONLY a JSON object — no prose, no code fences, nothing else:
+{"proposed_element": "<the revised HTML>"}

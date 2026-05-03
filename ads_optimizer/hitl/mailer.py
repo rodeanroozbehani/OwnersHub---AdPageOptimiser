@@ -1,0 +1,161 @@
+"""Send review notification and deployment confirmation emails via Resend."""
+
+from __future__ import annotations
+
+import logging
+import os
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+FROM_EMAIL = "Henry <henry@ownershub.com.au>"
+
+_PRIORITY_STYLE: dict[str, tuple[str, str]] = {
+    "P0": ("#fff0f0", "#c0392b"),
+    "P1": ("#fff8e0", "#d68910"),
+    "P2": ("#e8f5e9", "#196f3d"),
+}
+
+
+def _resend():  # type: ignore[return]
+    try:
+        import resend as _r
+    except ImportError as exc:
+        raise RuntimeError("resend package not installed: pip install resend") from exc
+    _r.api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if not _r.api_key:
+        raise RuntimeError("RESEND_API_KEY environment variable not set")
+    return _r
+
+
+def send_review_notification(
+    to_email: str,
+    session_id: str,
+    review_base_url: str,
+    changes: list[dict[str, Any]],
+    score: int,
+    assessment: str,
+) -> None:
+    resend = _resend()
+    review_url = f"{review_base_url.rstrip('/')}/review/{session_id}"
+    p0 = sum(1 for c in changes if c.get("priority") == "P0")
+    p1 = sum(1 for c in changes if c.get("priority") == "P1")
+    p2 = sum(1 for c in changes if c.get("priority") == "P2")
+
+    rows = ""
+    for c in changes:
+        priority = c.get("priority", "?")
+        bg, fg = _PRIORITY_STYLE.get(priority, ("#eee", "#333"))
+        rows += (
+            f"<tr>"
+            f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">'
+            f'<span style="background:{bg};color:{fg};padding:2px 7px;border-radius:3px;'
+            f'font-size:11px;font-weight:700;">{priority}</span> {c.get("id","")}</td>'
+            f'<td style="padding:8px 12px;border-bottom:1px solid #eee;color:#555;">'
+            f'{c.get("section","")}</td>'
+            f'<td style="padding:8px 12px;border-bottom:1px solid #eee;color:#666;font-size:13px;">'
+            f'{c.get("reasoning","")[:120]}…</td>'
+            f"</tr>"
+        )
+
+    html = f"""
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#fff;">
+  <div style="background:#1a1a2e;padding:28px 32px;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:22px;font-weight:600;">Henry · OwnersHub</h1>
+    <p style="color:#aaa;margin:6px 0 0;font-size:14px;">Content review ready for your approval</p>
+  </div>
+  <div style="padding:28px 32px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px;">
+    <p style="color:#555;font-size:14px;margin:0 0 8px;">
+      <strong style="color:#1a1a2e;">Conversion Readiness Score: {score}/10</strong>
+    </p>
+    <p style="color:#666;font-size:13px;line-height:1.6;margin:0 0 20px;">
+      {assessment[:300]}{'…' if len(assessment) > 300 else ''}
+    </p>
+    <p style="font-size:14px;margin:0 0 12px;">
+      <strong>{len(changes)} proposed changes</strong> — P0: {p0} · P1: {p1} · P2: {p2}
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:14px;">
+      <tr style="background:#f5f5f5;">
+        <th style="padding:8px 12px;text-align:left;font-size:12px;color:#888;font-weight:600;text-transform:uppercase;">ID</th>
+        <th style="padding:8px 12px;text-align:left;font-size:12px;color:#888;font-weight:600;text-transform:uppercase;">Section</th>
+        <th style="padding:8px 12px;text-align:left;font-size:12px;color:#888;font-weight:600;text-transform:uppercase;">Reasoning</th>
+      </tr>
+      {rows}
+    </table>
+    <div style="text-align:center;">
+      <a href="{review_url}"
+         style="display:inline-block;background:#1a1a2e;color:#fff;padding:14px 36px;
+                border-radius:6px;text-decoration:none;font-size:15px;font-weight:600;">
+        Review &amp; Approve Changes →
+      </a>
+    </div>
+    <p style="text-align:center;margin:20px 0 0;color:#bbb;font-size:12px;">
+      <a href="{review_url}" style="color:#bbb;">{review_url}</a>
+    </p>
+  </div>
+</div>"""
+
+    resend.Emails.send({
+        "from": FROM_EMAIL,
+        "to": [to_email],
+        "subject": f"Henry · {len(changes)} changes ready for review (score {score}/10)",
+        "html": html,
+    })
+    logger.info("Review notification sent to %s (session=%s)", to_email, session_id)
+
+
+def send_deployment_confirmation(
+    to_email: str,
+    session_id: str,
+    approved_count: int,
+    rejected_count: int,
+    feedback_count: int,
+    commit_url: str,
+) -> None:
+    resend = _resend()
+    short_id = session_id[:8]
+    commit_cell = (
+        f'<a href="{commit_url}" style="color:#0066cc;">'
+        f'{commit_url.split("/")[-1]}</a>'
+        if commit_url else "–"
+    )
+
+    html = f"""
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#fff;">
+  <div style="background:#0a5c36;padding:28px 32px;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:22px;font-weight:600;">Henry · Changes Deployed</h1>
+    <p style="color:#a8d8b9;margin:6px 0 0;font-size:14px;">Session {short_id} · Cloudflare Pages deploying now</p>
+  </div>
+  <div style="padding:28px 32px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px;">
+    <table style="width:100%;border-collapse:collapse;margin:0 0 20px;font-size:14px;">
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #eee;">Approved &amp; deployed</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:#0a5c36;">{approved_count}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #eee;">Rejected</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:#c0392b;">{rejected_count}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px;">Revised by Claude</td>
+        <td style="padding:10px 12px;text-align:right;font-weight:700;color:#1a5b9b;">{feedback_count}</td>
+      </tr>
+    </table>
+    <p style="color:#555;font-size:13px;">Commit: {commit_cell}</p>
+    <p style="text-align:center;margin:20px 0 0;color:#bbb;font-size:12px;">
+      Henry · OwnersHub Ad &amp; Page Optimiser
+    </p>
+  </div>
+</div>"""
+
+    subject = (
+        f"Henry · {approved_count} change{'s' if approved_count != 1 else ''} "
+        f"deployed to ownershub.com.au"
+    )
+    resend.Emails.send({
+        "from": FROM_EMAIL,
+        "to": [to_email],
+        "subject": subject,
+        "html": html,
+    })
+    logger.info("Deployment confirmation sent to %s", to_email)

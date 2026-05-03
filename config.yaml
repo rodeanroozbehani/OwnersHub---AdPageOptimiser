@@ -1,0 +1,79 @@
+website:
+  url: https://ownershub.com.au/
+  conversion_goal: formspree_register_interest
+  viewports:
+    desktop: [1440, 900]
+    mobile: [390, 844]
+  navigation_timeout_ms: 20000
+  request_timeout_s: 15
+  user_agent: "OwnersHubAdsOptimizer/1.0 (+local automation; contact rodean.r@gmail.com)"
+
+ads:
+  mode: live                     # mock | live
+  daily_budget_aud: 67
+  customer_id: "872-188-2091"                # required when mode=live, e.g. "1234567890" (no dashes)
+  credentials_file: ./google-ads.yaml
+
+thresholds:
+  spend_change: 0.20
+  conversion_change: 0.20
+  ctr_change: 0.15
+
+lookback_days:
+  full: 14
+  light: 3
+
+claude:
+  model: claude-sonnet-4-6
+  max_tokens: 4096
+  api_key_env: ANTHROPIC_API_KEY
+  json_retry_attempts: 1
+  request_timeout_s: 120
+
+storage:
+  reports_dir: reports
+  history_file: data/history.json
+  snapshots_dir: data/site-snapshots
+  snapshot_retention_days: 90
+  logs_file: logs/run.log
+  log_max_bytes: 5242880         # 5 MB
+  log_backup_count: 5
+
+content_optimizer:
+  # Absolute path to the landing page index.html on this machine.
+  # Update this path when deploying to the Beelink.
+  html_source: "C:\\Users\\Rodean\\Documents\\OwnersHub - Landing Page\\index.html"
+  output_dir: content-review
+  generate_proposed_html: true      # also write a full proposed index.html alongside the review
+  max_changes_per_run: 10           # cap so Claude stays focused and specific
+
+hitl:
+  enabled: true
+  to_email: rodean.r@gmail.com
+  from_email: henry@ownershub.com.au
+  review_base_url: https://henry.ownershub.com.au
+  # Path to the cloned landing page repo on this machine.
+  # On Beelink: /home/sysadmin/ownershub-landing
+  # On Windows dev: C:\Users\Rodean\Documents\OwnersHub - Landing Page
+  landing_page_repo: /home/sysadmin/ownershub-landing
+  html_file: index.html
+  branch: main
+  git_user_name: Henry
+  git_user_email: henry@ownershub.com.au
+  session_dir: data/review-sessions
+  port: 8080
+
+ownershub_context:
+  product: OwnersHub
+  audience: Self-managed NSW Owners Corporations (strata committees)
+  value_props:
+    - "Cost reduction (15-20% target vs traditional strata managers)"
+    - "Compliance automation (NSW Strata Schemes Management Act 2015)"
+    - "Financial transparency for committees"
+  pilot_target: "3-5 Owners Corporations Year 1"
+  primary_cta: "Register interest (Formspree form on landing page)"
+  trust_signals:
+    - "Built for NSW strata"
+    - "No hidden fees"
+    - "Your data, your control"
+  budget_stance: "Efficiency over scale at $67/day. Prefer reallocation and waste-reduction over budget increases."

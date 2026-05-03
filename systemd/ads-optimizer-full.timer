@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly trigger for OwnersHub Ad & Page Optimiser (full pass)
+
+[Timer]
+OnCalendar=Sun *-*-* 20:00:00 Australia/Sydney
+Persistent=true
+Unit=ads-optimizer-full.service
+
+[Install]
+WantedBy=timers.target

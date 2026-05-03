@@ -1,0 +1,10 @@
+[Unit]
+Description=Midweek trigger for OwnersHub Ad & Page Optimiser (light pass)
+
+[Timer]
+OnCalendar=Wed *-*-* 20:00:00 Australia/Sydney
+Persistent=true
+Unit=ads-optimizer-light.service
+
+[Install]
+WantedBy=timers.target
