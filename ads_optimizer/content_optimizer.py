@@ -84,7 +84,7 @@ def _parse_local_html(html_path: Path) -> dict[str, Any]:
         "forms": forms,
         "formspree_detected": any(f["is_formspree"] for f in forms),
         "raw_html_length": len(html),
-        "raw_html_source": html[:12000],
+        "raw_html_source": html[:6000],
     }
 
 

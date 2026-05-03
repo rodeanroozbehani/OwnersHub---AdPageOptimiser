@@ -118,7 +118,7 @@ def _take_screenshots(
                     page.set_default_navigation_timeout(navigation_timeout_ms)
                     page.goto(url, wait_until="networkidle")
                     raw_path = snapshot_dir / f"{label}.raw.png"
-                    page.screenshot(path=str(raw_path), full_page=True)
+                    page.screenshot(path=str(raw_path), full_page=False)
                     context.close()
 
                     # Downscale to fit within 1280×5000 (Anthropic max is 8000px per dimension).
