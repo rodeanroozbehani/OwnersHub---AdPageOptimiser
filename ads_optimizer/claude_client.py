@@ -199,15 +199,18 @@ class ClaudeClient:
                 if attempt >= self.json_retry_attempts:
                     raise
                 logger.warning("Content review output not valid JSON, retrying: %s", exc)
-                fixup_blocks = [{
-                    "type": "text",
-                    "text": (
-                        "Your previous response did not parse as the required JSON schema. "
-                        "Re-emit ONLY a single JSON object with these top-level keys: "
-                        f"{list(required_keys)}. No prose, no code fences."
-                    ),
-                }]
-                payload = self._call_with_retry(fixup_blocks)
+                fixup_text = (
+                    "Your previous response did not parse as the required JSON schema. "
+                    "Re-emit ONLY a single JSON object with these top-level keys: "
+                    f"{list(required_keys)}. No prose, no code fences."
+                )
+                # Pass full conversation so Claude retains its analysis context.
+                conversation = [
+                    {"role": "user", "content": content_blocks},
+                    {"role": "assistant", "content": [{"type": "text", "text": payload}]},
+                    {"role": "user", "content": [{"type": "text", "text": fixup_text}]},
+                ]
+                payload = self._call_with_messages(conversation)
         raise ClaudeError("unreachable")
 
     def re_review_change(
@@ -235,7 +238,8 @@ class ClaudeClient:
             raise ClaudeError("re-review response missing proposed_element key")
         return parsed
 
-    def _call_with_retry(self, content_blocks: list[dict[str, Any]]) -> str:
+    def _call_with_messages(self, messages: list[dict[str, Any]]) -> str:
+        """Call Claude with a full multi-turn messages array (used for JSON fixup retries)."""
         from anthropic import APIError, APITimeoutError, RateLimitError
 
         backoff = 2.0
@@ -246,7 +250,7 @@ class ClaudeClient:
                 response = self._client.messages.create(
                     model=self.model,
                     max_tokens=self.max_tokens,
-                    messages=[{"role": "user", "content": content_blocks}],
+                    messages=messages,
                 )
                 text_parts = [
                     block.text for block in response.content
@@ -259,3 +263,6 @@ class ClaudeClient:
                 time.sleep(backoff)
                 backoff *= 2
         raise ClaudeError(f"Claude call failed after retries: {last_exc}")
+
+    def _call_with_retry(self, content_blocks: list[dict[str, Any]]) -> str:
+        return self._call_with_messages([{"role": "user", "content": content_blocks}])

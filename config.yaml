@@ -25,7 +25,7 @@ lookback_days:
 
 claude:
   model: claude-sonnet-4-6
-  max_tokens: 4096
+  max_tokens: 8192
   api_key_env: ANTHROPIC_API_KEY
   json_retry_attempts: 1
   request_timeout_s: 120
