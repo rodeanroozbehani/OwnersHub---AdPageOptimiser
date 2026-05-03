@@ -24,27 +24,28 @@ def apply_and_deploy(
 
     source = html_path.read_text(encoding="utf-8")
     result = source
-    applied_ids: list[str] = []
+    applied: list[dict[str, Any]] = []
 
     for change in approved_changes:
         rr = change.get("re_review_result") or {}
         current = change.get("current_element", "")
         proposed = rr.get("proposed_element") or change.get("proposed_element", "")
+        title = (rr.get("title") or change.get("title") or "").strip()
         if current and proposed and current in result:
             result = result.replace(current, proposed, 1)
-            applied_ids.append(change.get("id", "?"))
+            applied.append({"id": change.get("id", "?"), "title": title})
         else:
             logger.warning(
                 "Skipping %s: current_element not found verbatim in HTML",
                 change.get("id", "?"),
             )
 
-    if not applied_ids:
+    if not applied:
         logger.warning("No changes applied verbatim — skipping commit")
         return ""
 
     html_path.write_text(result, encoding="utf-8")
-    logger.info("Applied changes %s to %s", applied_ids, html_path)
+    logger.info("Applied changes %s to %s", [a["id"] for a in applied], html_path)
 
     def _git(*args: str) -> str:
         proc = subprocess.run(
@@ -63,11 +64,13 @@ def apply_and_deploy(
     rel = str(html_path.relative_to(repo_dir))
     _git("add", rel)
 
-    ids_str = ", ".join(applied_ids)
-    commit_msg = (
-        f"Henry: apply {len(applied_ids)} CRO change(s) — {ids_str}\n\n"
-        f"Auto-applied by OwnersHub Ad & Page Optimiser after HITL approval."
-    )
+    # Build a spartan commit message from the change titles.
+    if len(applied) == 1:
+        commit_msg = applied[0]["title"] or applied[0]["id"]
+    else:
+        subject = f"{len(applied)} content updates"
+        body_lines = [f"- {a['title'] or a['id']}" for a in applied]
+        commit_msg = subject + "\n\n" + "\n".join(body_lines)
     _git("commit", "-m", commit_msg)
     _git("push", "origin", branch)
 

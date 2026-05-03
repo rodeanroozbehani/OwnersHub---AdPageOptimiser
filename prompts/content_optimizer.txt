@@ -144,11 +144,14 @@ Return a SINGLE JSON object, nothing else — no prose, no code fences:
       "effort": "low" | "medium" | "high",
       "current_element": string (the exact HTML as it appears now),
       "proposed_element": string (the exact replacement HTML),
-      "reasoning": string (specific evidence-based explanation citing search terms,
-        keyword quality scores, ad headlines, or screenshot observations — 2-4 sentences),
-      "expected_value": string (specific metric + realistic magnitude + cost-of-inaction
-        in spend terms where the data supports it),
-      "implementation_note": string (any gotchas, dependencies, or testing advice)
+      "reasoning": string (1-2 short sentences in plain English. NO jargon, NO research
+        citations, NO percentage CTR claims. Just explain in human terms why this change
+        matters for OwnersHub's audience),
+      "expected_value": string (1 short sentence on what should improve in plain English.
+        Avoid metric names like "CVR", "CTR", "scroll depth" — use everyday language like
+        "more form submissions", "more visitors clicking the CTA"),
+      "implementation_note": string (1 short line ONLY if there is a real gotcha. Leave
+        as empty string "" if there is nothing the reviewer needs to know beyond the change itself)
     }
   ],
   "proposed_html_changes_summary": string (brief plain-English list of all changes,
