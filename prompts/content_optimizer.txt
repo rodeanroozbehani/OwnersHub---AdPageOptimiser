@@ -56,14 +56,6 @@ PREVIOUS ADS/WEBSITE FINDINGS (from last optimiser run)
 $PREVIOUS_FINDINGS
 
 ================================================================================
-ATTACHED SCREENSHOTS
-================================================================================
-You will see a `desktop` and `mobile` screenshot of the live page. Use them to
-critique visual hierarchy, above-the-fold content, CTA visibility, mobile layout,
-and trust signal placement. Prioritise what a first-time visitor sees in the first
-3 seconds — that is where the conversion decision begins.
-
-================================================================================
 WHAT TO ANALYSE
 ================================================================================
 Evaluate the page against these dimensions in order of conversion impact:
@@ -103,9 +95,9 @@ Evaluate the page against these dimensions in order of conversion impact:
    an explicit privacy note, or a "what happens after I register" explanation?
 
 6. MOBILE EXPERIENCE
-   Is the CTA accessible on mobile without excessive scrolling?
+   Based on the HTML structure, is the CTA accessible on mobile without excessive scrolling?
    Does the heading hierarchy collapse sensibly on small screens?
-   Are tap targets large enough? Is any critical content hidden or cut off?
+   Are there any elements (large tables, wide images, fixed-width containers) likely to break mobile layout?
 
 7. HEADING HIERARCHY & SCANNABILITY
    Can a 5-second scan of headings communicate the full value proposition?

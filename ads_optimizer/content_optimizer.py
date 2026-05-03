@@ -282,20 +282,8 @@ class ContentOptimizer:
         html_text = self.html_source.read_text(encoding="utf-8")
         html_summary = _parse_local_html(self.html_source)
 
-        # 2. Screenshots of the live site (best-effort — review still runs if this fails)
+        # 2. Screenshots disabled — HTML source is sufficient for CRO analysis.
         screenshot_paths: dict[str, str] = {}
-        try:
-            snapshot_dir = (
-                self.project_root
-                / self.config["storage"]["snapshots_dir"]
-                / date.today().isoformat()
-            )
-            snapshot_dir.mkdir(parents=True, exist_ok=True)
-            analyzer = WebsiteAnalyzer(self.config)
-            web_report = analyzer.analyze(snapshot_dir, fetched_at_utc=run_ts)
-            screenshot_paths = web_report.screenshot_paths or {}
-        except Exception as exc:
-            logger.warning("ContentOptimizer: screenshots unavailable (%s) — continuing without", exc)
 
         # 3. Ads performance insights (search terms, keyword quality, ad copy, opt score)
         ads_insights: dict | None = None
