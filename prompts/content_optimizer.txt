@@ -44,6 +44,12 @@ CURRENT HTML STRUCTURE
 ================================================================================
 $HTML_SUMMARY
 
+IMPORTANT: The `raw_html_source` field above contains the first 12,000 characters
+of the actual HTML file verbatim. When populating `current_element`, copy the snippet
+EXACTLY as it appears in `raw_html_source` — same whitespace, same attribute quoting,
+same capitalisation. Do NOT paraphrase or reformat. Exact matching is required for
+the automated deployment to apply your changes.
+
 ================================================================================
 PREVIOUS ADS/WEBSITE FINDINGS (from last optimiser run)
 ================================================================================
