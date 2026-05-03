@@ -3,12 +3,52 @@
 from __future__ import annotations
 
 import logging
+import re
+import time
+from collections import deque
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
-from flask import Flask, abort, redirect, render_template_string, request, url_for
+from flask import Flask, abort, jsonify, redirect, render_template_string, request, url_for
 
 logger = logging.getLogger(__name__)
+
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+_ALLOWED_ORIGINS = {
+    "https://ownershub.com.au",
+    "https://www.ownershub.com.au",
+}
+
+# Simple in-memory IP rate limit: 5 requests / 60s per IP. Resets on restart.
+_RATE_BUCKETS: dict[str, deque[float]] = {}
+_RATE_LOCK = Lock()
+_RATE_WINDOW = 60.0
+_RATE_MAX = 5
+
+
+def _rate_limit_ok(ip: str) -> bool:
+    now = time.time()
+    with _RATE_LOCK:
+        bucket = _RATE_BUCKETS.setdefault(ip, deque())
+        while bucket and now - bucket[0] > _RATE_WINDOW:
+            bucket.popleft()
+        if len(bucket) >= _RATE_MAX:
+            return False
+        bucket.append(now)
+        return True
+
+
+def _cors_response(payload: dict, status: int, origin: str):
+    resp = jsonify(payload)
+    resp.status_code = status
+    if origin in _ALLOWED_ORIGINS:
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+    resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Max-Age"] = "600"
+    return resp
 
 # ── Review page template ──────────────────────────────────────────────────────
 
@@ -234,6 +274,42 @@ def create_app(config: dict[str, Any], project_root: Path) -> Flask:
     @app.route("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.route("/api/registration-thanks", methods=["POST", "OPTIONS"])
+    def registration_thanks():  # type: ignore[return]
+        """Triggered by the landing-page JS after a successful Formspree submit.
+        Sends a thank-you email to the visitor. CORS-restricted and rate-limited."""
+        origin = request.headers.get("Origin", "")
+
+        if request.method == "OPTIONS":
+            return _cors_response({"status": "ok"}, 200, origin)
+
+        if origin not in _ALLOWED_ORIGINS:
+            logger.warning("registration-thanks: blocked origin=%s", origin)
+            return _cors_response({"error": "origin not allowed"}, 403, origin)
+
+        ip = (request.headers.get("X-Forwarded-For", "") or request.remote_addr or "").split(",")[0].strip()
+        if not _rate_limit_ok(ip):
+            logger.warning("registration-thanks: rate-limit hit ip=%s", ip)
+            return _cors_response({"error": "rate limited"}, 429, origin)
+
+        body = request.get_json(silent=True) or {}
+        email = (body.get("email") or "").strip()
+        first_name = (body.get("first_name") or "").strip()
+
+        if not _EMAIL_RE.match(email) or len(email) > 254:
+            return _cors_response({"error": "invalid email"}, 400, origin)
+        if len(first_name) > 80:
+            first_name = first_name[:80]
+
+        try:
+            from .mailer import send_form_submission_thanks
+            send_form_submission_thanks(to_email=email, first_name=first_name)
+        except Exception as exc:
+            logger.warning("registration-thanks: send failed for %s: %s", email, exc)
+            return _cors_response({"error": "send failed"}, 502, origin)
+
+        return _cors_response({"status": "sent"}, 200, origin)
 
     @app.route("/review/<session_id>", methods=["GET"])
     def review(session_id: str):  # type: ignore[return]

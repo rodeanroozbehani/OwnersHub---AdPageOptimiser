@@ -9,6 +9,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 FROM_EMAIL = "Henry <henry@ownershub.com.au>"
+THANKS_FROM_EMAIL = "OwnersHub <hello@ownershub.com.au>"
 
 _PRIORITY_STYLE: dict[str, tuple[str, str]] = {
     "P0": ("#fff0f0", "#c0392b"),
@@ -223,3 +224,49 @@ def send_deployment_confirmation(
         "html": html,
     })
     logger.info("Deployment confirmation sent to %s", to_email)
+
+
+def send_form_submission_thanks(to_email: str, first_name: str) -> None:
+    """Thank-you email sent to a visitor immediately after they submit the
+    landing-page registration form. Triggered from the /api/registration-thanks
+    endpoint on Henry, which the landing page calls after Formspree succeeds."""
+    resend = _resend()
+    safe_name = (first_name or "").strip() or "there"
+
+    html = f"""
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#fff;color:#333;">
+  <div style="background:#0D1B2A;padding:28px 32px;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:22px;font-weight:600;">Thanks for registering, {safe_name}.</h1>
+    <p style="color:#9aa6b3;margin:8px 0 0;font-size:14px;">We&rsquo;ve received your interest in the OwnersHub pilot.</p>
+  </div>
+  <div style="padding:28px 32px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px;line-height:1.7;">
+    <p style="margin:0 0 16px;font-size:15px;">
+      We&rsquo;re building OwnersHub specifically for self-managed NSW Owners Corporations and your registration helps us shape the pilot around real committee needs.
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;"><strong>What happens next:</strong></p>
+    <ul style="margin:0 0 18px 18px;padding:0;font-size:15px;">
+      <li style="margin-bottom:8px;">We&rsquo;ll review your submission to assess pilot fit.</li>
+      <li style="margin-bottom:8px;">If your scheme matches our intake criteria, we&rsquo;ll be in touch directly to discuss next steps.</li>
+      <li style="margin-bottom:8px;">In the meantime there&rsquo;s nothing you need to do.</li>
+    </ul>
+    <p style="margin:0 0 16px;font-size:15px;">
+      If you have questions or anything has changed since you registered, just reply to this email.
+    </p>
+    <p style="margin:24px 0 0;font-size:15px;">
+      &mdash; The OwnersHub team
+    </p>
+    <p style="margin:24px 0 0;color:#9aa6b3;font-size:12px;line-height:1.5;">
+      You&rsquo;re receiving this because you submitted the registration form on ownershub.com.au.
+      We&rsquo;ll only use your details to contact you about pilot intake. See our
+      <a href="https://ownershub.com.au/legal/privacy.html" style="color:#9aa6b3;">privacy policy</a> for more.
+    </p>
+  </div>
+</div>"""
+
+    resend.Emails.send({
+        "from": THANKS_FROM_EMAIL,
+        "to": [to_email],
+        "subject": "Thanks for registering interest in OwnersHub",
+        "html": html,
+    })
+    logger.info("Registration thanks email sent to %s", to_email)
