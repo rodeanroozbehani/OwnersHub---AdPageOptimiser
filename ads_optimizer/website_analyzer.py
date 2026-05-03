@@ -121,12 +121,12 @@ def _take_screenshots(
                     page.screenshot(path=str(raw_path), full_page=True)
                     context.close()
 
-                    # Downscale to <=1280px wide before keeping the final.
+                    # Downscale to fit within 1280×5000 (Anthropic max is 8000px per dimension).
                     final_path = snapshot_dir / f"{label}.png"
                     with Image.open(raw_path) as img:
-                        if img.width > 1280:
-                            ratio = 1280 / img.width
-                            new_size = (1280, int(img.height * ratio))
+                        scale = min(1280 / img.width, 5000 / img.height, 1.0)
+                        if scale < 1.0:
+                            new_size = (int(img.width * scale), int(img.height * scale))
                             img = img.resize(new_size, Image.LANCZOS)
                         img.save(final_path, "PNG", optimize=True)
                     raw_path.unlink(missing_ok=True)
