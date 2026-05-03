@@ -131,7 +131,7 @@ def _write_review_doc(
     html_summary: dict[str, Any],
     run_timestamp_utc: str,
 ) -> None:
-    changes = claude_output.get("proposed_changes", [])
+    changes = [c for c in claude_output.get("proposed_changes", []) if isinstance(c, dict)]
     score = claude_output.get("conversion_readiness_score", "N/A")
     assessment = claude_output.get("overall_assessment", "")
     change_log = claude_output.get("proposed_html_changes_summary", "")
@@ -352,9 +352,10 @@ class ContentOptimizer:
         _write_review_doc(review_path, claude_output, html_summary, run_ts)
 
         # 6. Optionally write proposed HTML (all changes pre-applied)
-        if self.generate_proposed_html and claude_output.get("proposed_changes"):
+        valid_changes = [c for c in claude_output.get("proposed_changes", []) if isinstance(c, dict)]
+        if self.generate_proposed_html and valid_changes:
             proposed_path = self.output_dir / f"{today}-proposed-index.html"
-            proposed_html = _apply_changes_to_html(html_text, claude_output["proposed_changes"])
+            proposed_html = _apply_changes_to_html(html_text, valid_changes)
             proposed_path.write_text(proposed_html, encoding="utf-8")
             logger.info("ContentOptimizer: proposed HTML written: %s", proposed_path)
 
@@ -364,7 +365,7 @@ class ContentOptimizer:
             "run_timestamp_utc": run_ts,
             "html_source": str(self.html_source),
             "conversion_readiness_score": claude_output.get("conversion_readiness_score"),
-            "changes_count": len(claude_output.get("proposed_changes", [])),
+            "changes_count": len(valid_changes),
             "report_path": str(review_path),
             "claude_output": claude_output,
         }
@@ -372,7 +373,7 @@ class ContentOptimizer:
 
         # 8. HITL: create review session and email Henry's notification
         hitl_cfg = self.config.get("hitl", {})
-        if hitl_cfg.get("enabled", False) and not dry_run and claude_output.get("proposed_changes"):
+        if hitl_cfg.get("enabled", False) and not dry_run and valid_changes:
             try:
                 from .hitl.state import ReviewSession
                 from .hitl.mailer import send_review_notification
@@ -380,7 +381,7 @@ class ContentOptimizer:
                 session_dir = self.project_root / hitl_cfg.get("session_dir", "data/review-sessions")
                 session = ReviewSession.create(
                     session_dir=session_dir,
-                    changes=claude_output["proposed_changes"],
+                    changes=valid_changes,
                     html_source=str(self.html_source),
                     review_path=str(review_path),
                     conversion_readiness_score=claude_output.get("conversion_readiness_score", 0),
@@ -390,7 +391,7 @@ class ContentOptimizer:
                     to_email=hitl_cfg["to_email"],
                     session_id=session.session_id,
                     review_base_url=hitl_cfg["review_base_url"],
-                    changes=claude_output["proposed_changes"],
+                    changes=valid_changes,
                     score=claude_output.get("conversion_readiness_score", 0),
                     assessment=claude_output.get("overall_assessment", ""),
                 )

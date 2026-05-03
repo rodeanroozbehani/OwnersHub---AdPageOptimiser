@@ -200,9 +200,17 @@ class ClaudeClient:
                     raise
                 logger.warning("Content review output not valid JSON, retrying: %s", exc)
                 fixup_text = (
-                    "Your previous response did not parse as the required JSON schema. "
-                    "Re-emit ONLY a single JSON object with these top-level keys: "
-                    f"{list(required_keys)}. No prose, no code fences."
+                    "Your previous response did not parse as valid JSON. "
+                    "Re-emit your analysis as a SINGLE JSON object with NO prose and NO code fences. "
+                    "Required top-level keys and types:\n"
+                    '  "overall_assessment": string\n'
+                    '  "conversion_readiness_score": integer 1-10\n'
+                    '  "proposed_changes": array of objects, each with keys: '
+                    "id, priority, section, dimension, effort, current_element, "
+                    "proposed_element, reasoning, expected_value, implementation_note\n"
+                    '  "proposed_html_changes_summary": string\n'
+                    "Ensure all HTML inside JSON strings has double-quotes escaped as \\\" "
+                    "and newlines escaped as \\n."
                 )
                 # Pass full conversation so Claude retains its analysis context.
                 conversation = [
